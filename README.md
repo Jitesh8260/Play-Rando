@@ -1,7 +1,7 @@
-<h1 align="center">Lets Rando !! 🃏</h1>
+ <h1 align="center">Lets Rando !! 🃏</h1>
 
 **PlayRando** is an online multiplayer card game currently under development.  
-This is a work-in-progress project being built collaboratively to explore multiplayer architecture, game logic, and frontend/backend integration.
+This is a work-in-progress project being built collaboratively to explore multiplayer architecture, game logic, and frontend/backend integration...
 
 ## 👨‍💻 Contributors :
 
