@@ -25,12 +25,16 @@ const Lobby = () => {
   };
 
   useEffect(() => {
+    socket.on("connect", () => {
+      console.log("🔌 Connected with Socket ID:", socket.id);
+    });
+    
     socket.on("update_players", (updatedPlayers) => {
       setPlayers(updatedPlayers);
     });
 
     socket.on("start_game", () => {
-      alert("Game is starting! 🚀");
+      // alert("Game is starting! 🚀");
       navigate("/game");
     });
 
@@ -42,10 +46,10 @@ const Lobby = () => {
 
   return (
     <div className="relative h-screen w-screen flex items-center justify-center bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white overflow-hidden px-4 font-body">
-      
+
       {/* Glass Lobby Card */}
       <div className="backdrop-blur-md bg-white/10 border border-white/20 rounded-3xl p-10 md:p-14 shadow-lg text-center max-w-2xl w-full mx-4">
-        
+
         <h1
           className="text-4xl md:text-5xl font-extrabold tracking-widest mb-8 text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-pink-300 to-purple-400 font-display"
           style={{
@@ -108,7 +112,7 @@ const Lobby = () => {
       {/* Background effect */}
       <div className="absolute inset-0 z-[-1] opacity-10 bg-[url('/stars.svg')] bg-cover bg-center" />
 
-       <footer className="absolute bottom-4 text-xs text-gray-300 tracking-wide opacity-70 font-body">
+      <footer className="absolute bottom-4 text-xs text-gray-300 tracking-wide opacity-70 font-body">
         Created by <span className="text-pink-400">Jitesh & Team</span> © 2025
       </footer>
     </div>

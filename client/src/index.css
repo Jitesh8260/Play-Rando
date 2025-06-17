@@ -26,3 +26,88 @@
     }
   }
 }
+.playing-card {
+  width: 80px;
+  height: 120px;
+  background: white;
+  border: 2px solid #ccc;
+  border-radius: 10px;
+  padding: 8px;
+  box-shadow: 2px 4px 10px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-family: 'Georgia', serif;
+  text-align: left;
+}
+
+.card-top,
+.card-bottom {
+  display: flex;
+  flex-direction: column;
+}
+
+.card-bottom {
+  transform: rotate(180deg);
+  align-items: flex-end;
+}
+
+.rank {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.suit {
+  font-size: 18px;
+}
+
+.suit.hearts,
+.suit.diamonds {
+  color: red;
+}
+
+.suit.spades,
+.suit.clubs {
+  color: black;
+}
+
+
+.card-container {
+  width: 80px;
+  height: 120px;
+  perspective: 1000px;
+  cursor: pointer;
+}
+
+.card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s ease;
+  transform-style: preserve-3d;
+}
+
+.card-container.flipped .card-inner {
+  transform: rotateY(180deg);
+}
+
+.card-front, .card-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+.card-back {
+  transform: rotateY(180deg);
+  background: #222;
+  color: white;
+  font-size: 24px;
+}
