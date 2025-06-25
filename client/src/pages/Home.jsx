@@ -5,6 +5,11 @@ import PlayNowButton from "../components/PlayNowButton";
 const Home = () => {
   const navigate = useNavigate();
 
+  // ✅ Generate unique playerId if not already stored
+  if (!sessionStorage.getItem("playerId")) {
+    sessionStorage.setItem("playerId", crypto.randomUUID());
+  }
+
   return (
     <div className="relative h-screen w-screen flex items-center justify-center bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white overflow-hidden px-4 font-body">
       

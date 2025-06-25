@@ -2,6 +2,12 @@ import React, { useState, useEffect } from "react";
 import { socket } from "../utils/socket";
 import { useNavigate } from "react-router-dom";
 
+// ✅ Generate a unique ID once per browser/tab
+if (!sessionStorage.getItem("playerId")) {
+  sessionStorage.setItem("playerId", crypto.randomUUID());
+}
+const playerId = sessionStorage.getItem("playerId");
+
 const Lobby = () => {
   const [name, setName] = useState("");
   const [roomId, setRoomId] = useState("");
@@ -16,8 +22,21 @@ const Lobby = () => {
       return;
     }
 
-    socket.emit("join_room", { playerName: name, roomId });
+    const playerId = sessionStorage.getItem("playerId");
+
+    // ✅ Store playerName in session to persist across page reloads
+    sessionStorage.setItem("playerName", name);
+    sessionStorage.setItem("roomId", roomId); // ✅ Add this in handleJoin
+
+    socket.emit("join_room", { playerId, playerName: name, roomId });
   };
+
+  useEffect(() => {
+    const storedName = sessionStorage.getItem("playerName");
+    if (storedName) {
+      setName(storedName);
+    }
+  }, []);
 
   const handleReady = () => {
     socket.emit("player_ready");
@@ -28,13 +47,12 @@ const Lobby = () => {
     socket.on("connect", () => {
       console.log("🔌 Connected with Socket ID:", socket.id);
     });
-    
+
     socket.on("update_players", (updatedPlayers) => {
       setPlayers(updatedPlayers);
     });
 
     socket.on("start_game", () => {
-      // alert("Game is starting! 🚀");
       navigate("/game");
     });
 
@@ -49,7 +67,6 @@ const Lobby = () => {
 
       {/* Glass Lobby Card */}
       <div className="backdrop-blur-md bg-white/10 border border-white/20 rounded-3xl p-10 md:p-14 shadow-lg text-center max-w-2xl w-full mx-4">
-
         <h1
           className="text-4xl md:text-5xl font-extrabold tracking-widest mb-8 text-transparent bg-clip-text bg-gradient-to-r from-indigo-300 via-pink-300 to-purple-400 font-display"
           style={{
