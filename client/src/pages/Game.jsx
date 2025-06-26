@@ -1,3 +1,4 @@
+// ... (imports same)
 import React, { useEffect, useState } from "react";
 import { socket } from "../utils/socket";
 import CardFront from "../components/CardFront";
@@ -21,11 +22,12 @@ const Game = () => {
   const [showKnockMessage, setShowKnockMessage] = useState(false);
   const [finalHands, setFinalHands] = useState(null);
   const [canKnock, setCanKnock] = useState(false);
-  const [knockTimer, setKnockTimer] = useState(null); // NEW 🕒
+  const [knockTimer, setKnockTimer] = useState(null);
 
   const myPlayer = players.find((p) => p.playerId === myId);
   const otherPlayers = players.filter((p) => p.playerId !== myId);
   const isMyTurn = currentTurn === myId;
+  const eliminatedSet = new Set(finalHands?.filter(f => f.isEliminated).map(p => p.playerId) || []);
 
   useEffect(() => {
     const name = sessionStorage.getItem("playerName");
@@ -74,20 +76,24 @@ const Game = () => {
       setTimeout(() => setShowKnockMessage(false), 3000);
     });
 
-    socket.on("round_end", ({ finalHands }) => {
+    socket.on("round_end", ({ finalHands, rankings }) => {
       setFinalHands(finalHands);
+      if (rankings) {
+        setTimeout(() => {
+          alert(
+            "🏆 Game Over\n\n" +
+            rankings.map((r) => `${r.position}: ${r.name}`).join("\n")
+          );
+          window.location.reload();
+        }, 1500);
+      }
     });
 
-    // ✅ Knock timer events
-    socket.on("allow_knock", () => {
-      setCanKnock(true);
-    });
-
+    socket.on("allow_knock", () => setCanKnock(true));
     socket.on("knock_timer", (count) => {
       setKnockTimer(count);
       if (count === 0) setKnockTimer(null);
     });
-
     socket.on("disable_knock", () => {
       setCanKnock(false);
       setKnockTimer(null);
@@ -104,13 +110,18 @@ const Game = () => {
       socket.off("card_drawn");
       socket.off("player_knocked");
       socket.off("round_end");
-
-      // cleanup for new listeners
       socket.off("allow_knock");
       socket.off("knock_timer");
       socket.off("disable_knock");
     };
   }, [myId]);
+
+  useEffect(() => {
+    if (finalHands) {
+      const timer = setTimeout(() => setFinalHands(null), 10000);
+      return () => clearTimeout(timer);
+    }
+  }, [finalHands]);
 
   const handleCardClick = (index) => setSelectedIndex(index);
 
@@ -121,14 +132,18 @@ const Game = () => {
 
     const cardToDiscard = myPlayer.cards[selectedIndex];
     socket.emit("discard_card", { discard: cardToDiscard, keep: drawnCard });
-
-    // No need to manually trigger knock timer here anymore
   };
 
   const handleKnock = () => {
     if (!isMyTurn || !canKnock) return;
     socket.emit("player_knock");
     setCanKnock(false);
+  };
+  const suitEmoji = {
+    hearts: "♥",
+    spades: "♠",
+    diamonds: "♦",
+    clubs: "♣",
   };
 
   return (
@@ -144,19 +159,24 @@ const Game = () => {
       )}
 
       {finalHands && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white p-6 rounded-xl z-50 shadow-lg">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-black/80 text-white p-6 rounded-xl z-50 shadow-lg max-w-[90%]">
           <h2 className="text-xl font-bold mb-4 text-center">📊 Round Over</h2>
           {finalHands.map((p, idx) => (
             <div key={idx} className="mb-2 text-lg text-center">
-              <strong>{p.name}</strong>: {p.cards.map(c => `${c.rank}${c.suit[0]}`).join(" ")}
+              <strong className={`${p.isRando ? "text-red-400" : ""} ${p.isEliminated ? "line-through text-gray-400" : ""}`}>
+                {p.name}
+              </strong>
+              : {p.cards.map((c) => `${c.rank}${suitEmoji[c.suit?.toLowerCase()] || "?"}`).join(" ")}
+              <span className="text-yellow-300 ml-1 font-mono">{p.score}</span>
+              {p.isRando && !p.isEliminated && " 🫣 Rando"}
+              {p.isEliminated && " ❌ Eliminated"}
             </div>
           ))}
         </div>
       )}
 
       <div className="absolute top-24 left-1/2 -translate-x-1/2 z-30 text-lg font-display text-cyan-300 drop-shadow">
-        {isMyTurn ? "🔁 Your Turn" : `🎮 ${players.find((p) => p.playerId === currentTurn)?.name || "Waiting"
-          }'s Turn`}
+        {isMyTurn ? "🔁 Your Turn" : `🎮 ${players.find((p) => p.playerId === currentTurn)?.name || "Waiting"}'s Turn`}
       </div>
 
       {/* Oval Table */}
@@ -181,6 +201,8 @@ const Game = () => {
               OVAL_HEIGHT
             );
 
+            const isEliminated = eliminatedSet.has(player.playerId);
+
             return (
               <div
                 key={player.playerId}
@@ -192,19 +214,21 @@ const Game = () => {
                   textAlign: "center",
                 }}
               >
-                <p className="text-xs text-slate-300 font-display mb-1">
+                <p className={`text-xs font-display mb-1 ${isEliminated ? "text-red-400 line-through" : "text-slate-300"}`}>
                   {player.name}
                 </p>
-                <div className="flex">
-                  {player.cards.slice(0, 3).map((_, idx) => (
-                    <div
-                      key={idx}
-                      className="w-14 h-20 rounded-md border-2 border-purple-400 bg-purple-800 -ml-5 first:ml-0 shadow"
-                    >
-                      🎴
-                    </div>
-                  ))}
-                </div>
+                {!isEliminated && (
+                  <div className="flex">
+                    {player.cards.slice(0, 3).map((_, idx) => (
+                      <div
+                        key={idx}
+                        className="w-14 h-20 rounded-md border-2 border-purple-400 bg-purple-800 -ml-5 first:ml-0 shadow"
+                      >
+                        🎴
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -213,8 +237,8 @@ const Game = () => {
           <div
             onClick={() => isMyTurn && socket.emit("draw_card")}
             className={`w-20 h-32 border-2 rounded-lg flex items-center justify-center cursor-pointer hover:scale-105 transition ${isMyTurn
-                ? "bg-gray-800 border-gray-600"
-                : "bg-gray-700 border-gray-500 cursor-not-allowed opacity-50"
+              ? "bg-gray-800 border-gray-600"
+              : "bg-gray-700 border-gray-500 cursor-not-allowed opacity-50"
               }`}
           >
             🂠
@@ -222,8 +246,8 @@ const Game = () => {
           <div
             onClick={() => isMyTurn && socket.emit("pick_discard_card")}
             className={`w-20 h-32 border-2 rounded-lg p-2 cursor-pointer hover:scale-105 transition ${isMyTurn
-                ? "border-red-500"
-                : "border-gray-600 cursor-not-allowed opacity-50"
+              ? "border-red-500"
+              : "border-gray-600 cursor-not-allowed opacity-50"
               }`}
           >
             {discardTop ? (
@@ -237,7 +261,6 @@ const Game = () => {
         </div>
       </div>
 
-      {/* Player's Cards */}
       <div className="absolute bottom-24 left-1/2 -translate-x-1/2 text-center">
         <p className="text-green-400 font-display mb-2">You</p>
         <div className="flex gap-3">
@@ -253,7 +276,6 @@ const Game = () => {
         </div>
       </div>
 
-      {/* Drawn Card Display */}
       {drawnCard && (
         <div className="absolute bottom-28 right-[120px] text-center">
           <p className="text-yellow-400 font-semibold mb-2">Picked</p>
@@ -261,31 +283,29 @@ const Game = () => {
         </div>
       )}
 
-      {/* Knock Timer Display */}
       {canKnock && knockTimer !== null && (
         <div className="absolute bottom-32 left-1/2 -translate-x-1/2 bg-black/60 px-4 py-2 rounded-full text-lg font-bold text-yellow-400 z-50 font-display">
           ⏱️ Knock in: {knockTimer}
         </div>
       )}
 
-      {/* Action Buttons */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex gap-6 z-20">
         <button
-          disabled={!isMyTurn}
-          className={`font-display px-6 py-2 rounded-full shadow-md transition ${isMyTurn
-              ? "bg-yellow-400 text-black hover:brightness-110"
-              : "bg-yellow-300 text-black opacity-50 cursor-not-allowed"
+          disabled={!isMyTurn || finalHands}
+          className={`font-display px-6 py-2 rounded-full shadow-md transition ${isMyTurn && !finalHands
+            ? "bg-yellow-400 text-black hover:brightness-110"
+            : "bg-yellow-300 text-black opacity-50 cursor-not-allowed"
             }`}
           onClick={handleSwap}
         >
           ♻️ Swap
         </button>
         <button
-          disabled={!isMyTurn || !canKnock}
+          disabled={!isMyTurn || !canKnock || finalHands}
           onClick={handleKnock}
-          className={`font-display px-6 py-2 rounded-full shadow-md transition ${isMyTurn && canKnock
-              ? "bg-red-500 text-white hover:bg-red-400"
-              : "bg-red-400 text-white opacity-50 cursor-not-allowed"
+          className={`font-display px-6 py-2 rounded-full shadow-md transition ${isMyTurn && canKnock && !finalHands
+            ? "bg-red-500 text-white hover:bg-red-400"
+            : "bg-red-400 text-white opacity-50 cursor-not-allowed"
             }`}
         >
           🔔 Knock
